@@ -1,6 +1,4 @@
-from fuzzywuzzy import process
 
-def oversæt_fuzzy(navn, kandidater):
-    navn = navn.lower()
-    result = process.extractOne(navn, kandidater, score_cutoff=70)
-    return result[0] if result else navn
+def match_food_label(label):
+    # Dummy placeholder for synonym or fuzzy match logic
+    return label
