@@ -1,7 +1,7 @@
 streamlit
-opencv-python
+torch
+transformers
+pillow
 pandas
-numpy
-Pillow
 fuzzywuzzy
 python-Levenshtein
