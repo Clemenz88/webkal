@@ -1,33 +1,32 @@
 import streamlit as st
-from utils.image_utils import load_image, detect_hand_and_food_area
+from utils.image_utils import load_image
 from utils.matcher import oversæt_fuzzy
 import pandas as pd
 
-st.title("Kalorieestimering med håndreference")
+st.title("Kalorieestimering fra billede")
+uploaded_file = st.file_uploader("Upload billede med hånd og mad", type=["jpg", "jpeg", "png"])
 
-uploaded_file = st.file_uploader("Upload et billede", type=["jpg", "jpeg", "png"])
 if uploaded_file:
-    image = load_image(uploaded_file)
-    st.image(image, caption="Uploadet billede", use_container_width=True)
+    img = load_image(uploaded_file)
+    st.image(img, caption="Dit billede", use_container_width=True)
 
-    hand_area, food_area = detect_hand_and_food_area(image)
-    st.write(f"⚖️ Estimeret område: {food_area:.2f} cm² mad (vs. {hand_area:.2f} cm² hånd)")
+    st.markdown("### Analyse")
+    # Dummy analyse
+    detected_food = ["æg", "kartofler", "smør", "broccoli"]
+    weights = [100, 200, 50, 25]  # gram
 
-    kaloriedata = pd.read_csv("kaloriedata.csv")
-    food_list = kaloriedata["navn"].tolist()
+    df = pd.read_csv("kaloriedata.csv")
+    food_names = df["navn"].tolist()
 
-    # Dummy-resultat (erstattes af modeloutput i rigtig version)
-    detected_food = ["egg", "potato", "butter", "broccoli"]
-    results = []
-    for raw in detected_food:
-        label = oversæt_fuzzy(raw, food_list)
-        kalorie_pr_100g = kaloriedata[kaloriedata["navn"] == label]["kcal pr 100g"].values[0]
-        mængde = 50  # dummy
-        energi = mængde * kalorie_pr_100g / 100
-        results.append((label, mængde, energi))
+    result = []
+    for food, gram in zip(detected_food, weights):
+        matched = oversæt_fuzzy(food, food_names)
+        kcal_pr_100 = df[df["navn"] == matched]["kcal_pr_100g"].values[0] if matched else 0
+        kcal = gram * kcal_pr_100 / 100
+        result.append((food, matched, gram, round(kcal)))
 
-    st.subheader("🍽️ Madanalyse")
-    for navn, g, kcal in results:
-        st.write(f"- **{navn}**: {g} g → {kcal:.1f} kcal")
+    for original, match, g, kcal in result:
+        st.write(f"🔍 {original} → **{match}**: {g} g → **{kcal} kcal**")
 
-    st.selectbox("Hvis noget er forkert, vælg den rigtige madvare:", food_list)
+    total_kcal = sum([r[3] for r in result])
+    st.markdown(f"### Totalt: **{total_kcal} kcal**")
