@@ -1,49 +1,54 @@
+
 import streamlit as st
-from PIL import Image
 import pandas as pd
-import torch
-from transformers import AutoFeatureExtractor, AutoModelForImageClassification
+import os
 from utils.matcher import oversæt_fuzzy
+from utils.image_utils import load_image, detect_hand_and_food_area
+from PIL import Image
 
-@st.cache_resource
-def load_model():
-    extractor = AutoFeatureExtractor.from_pretrained("nateraw/food101")
-    model = AutoModelForImageClassification.from_pretrained("nateraw/food101")
-    return extractor, model
+st.title("Kalorie Estimator fra Billede")
 
-extractor, model = load_model()
-df = pd.read_csv("kaloriedata.csv")
-food_list = df["food"].tolist()
+kaloriedata = pd.read_csv("kaloriedata.csv")
+food_list = kaloriedata["fødevare"].tolist()
 
-st.title("🥗 WebKalorier – Billedbaseret Kalorieestimering")
-
-file = st.file_uploader("Upload et billede af din mad", type=["jpg", "jpeg", "png"])
-if file:
-    img = Image.open(file).convert("RGB")
+uploaded_file = st.file_uploader("Upload billede", type=["jpg", "jpeg", "png"])
+if uploaded_file:
+    img = load_image(uploaded_file)
     st.image(img, caption="Dit billede", use_container_width=True)
 
-    inputs = extractor(images=img, return_tensors="pt")
-    with torch.no_grad():
-        logits = model(**inputs).logits
-    probs = torch.nn.functional.softmax(logits, dim=-1)
-    confidence, pred_class = torch.max(probs, dim=1)
-    label = model.config.id2label[pred_class.item()]
-    conf_value = confidence.item()
+    st.markdown("### Billedeanalyse")
+    detekterede = [
+        {"label": "kartoffel", "areal_cm2": 60},
+        {"label": "broccoli", "areal_cm2": 20},
+        {"label": "æg", "areal_cm2": 30},
+        {"label": "smør", "areal_cm2": 10}
+    ]
 
-    st.write(f"🤖 Modelgæt: **{label}** ({conf_value:.0%} sikkerhed)")
+    results = []
+    for d in detekterede:
+        label = d["label"]
+        fallback = st.selectbox(f"Er det korrekt for: {label}?", food_list, index=food_list.index(label) if label in food_list else 0)
+        valgt_label = oversæt_fuzzy(fallback, food_list)
+        d["label"] = valgt_label
+        results.append(d)
 
-    if conf_value >= 0.7:
-        food_raw = label.replace("_", " ")
-    else:
-        food_raw = st.selectbox("Modellen er usikker. Vælg fødevare:", sorted(food_list))
+    st.markdown("### Resultat")
+    def estimer_vægt_cm2(areal, madtype):
+        vægtfaktor = {
+            "kartoffel": 2.5,
+            "broccoli": 1.2,
+            "æg": 3.0,
+            "smør": 1.0
+        }
+        return areal * vægtfaktor.get(madtype, 2.0)
 
-    food_label = oversæt_fuzzy(food_raw, food_list)
-    st.write("🔍 Matcher som:", food_label)
-
-    row = df[df["food"] == food_label]
-    if not row.empty:
-        kcal = float(row["kcal_per_gram"].values[0])
-        density = float(row["g_per_cm2"].values[0])
-        st.success(f"{food_label.title()}: {kcal} kcal/g, {density} g/cm²")
-    else:
-        st.warning("Ingen data fundet for denne fødevare.")
+    total_txt = []
+    for item in results:
+        label = item["label"]
+        vægt = estimer_vægt_cm2(item["areal_cm2"], label)
+        rad = kaloriedata[kaloriedata["fødevare"] == label]
+        if not rad.empty:
+            kcal_pr_100g = rad.iloc[0]["kcal_pr_100g"]
+            kcal = vægt * kcal_pr_100g / 100
+            total_txt.append(f"{round(vægt)} g {label} ({round(kcal)} kcal)")
+    st.success(", ".join(total_txt))
