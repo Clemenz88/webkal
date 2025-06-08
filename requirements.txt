@@ -1,0 +1,7 @@
+streamlit
+opencv-python
+torch
+ultralytics
+pillow
+fuzzywuzzy
+python-Levenshtein
