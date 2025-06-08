@@ -1,7 +1,7 @@
-
 streamlit
-pillow
-opencv-python
-numpy
 pandas
-rapidfuzz
+numpy
+opencv-python
+Pillow
+fuzzywuzzy
+python-Levenshtein

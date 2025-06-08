@@ -1,13 +1,12 @@
-
 import cv2
-from PIL import Image
 import numpy as np
+from PIL import Image
 
-def load_image(img_file):
-    return Image.open(img_file)
+def load_image(uploaded_file):
+    image = Image.open(uploaded_file)
+    return np.array(image)
 
 def detect_hand_and_food_area(image):
-    return 1.0  # dummy scale
-
-def compute_scale_cm2(scale_factor):
-    return scale_factor
+    hand_area = 100.0
+    food_area = 250.0
+    return hand_area, food_area

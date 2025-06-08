@@ -1,8 +1,5 @@
-
-from rapidfuzz import process
+from fuzzywuzzy import process
 
 def oversæt_fuzzy(navn, kandidater):
-    match = process.extractOne(navn, kandidater, score_cutoff=70)
-    if match:
-        return match[0]
-    return navn
+    match, score = process.extractOne(navn, kandidater)
+    return match if score >= 70 else navn
